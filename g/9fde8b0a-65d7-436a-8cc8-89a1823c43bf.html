@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="uk" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Перетворення графіків функцій — Інтерактивний Симулятор</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fira+Code:wght@500;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['Fira Code', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            },
+            math: {
+              grid: '#1e293b',
+              axis: '#64748b',
+              target: '#38bdf8',
+              user: '#f59e0b',
+              success: '#10b981',
+              error: '#ef4444',
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'bounce-short': 'bounceShort 0.4s ease-in-out 2',
+            'glow-success': 'glowSuccess 1.5s ease-in-out infinite alternate',
+          },
+          keyframes: {
+            bounceShort: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-6px)' }
+            },
+            glowSuccess: {
+              '0%': { boxShadow: '0 0 10px rgba(16, 185, 129, 0.2)' },
+              '100%': { boxShadow: '0 0 25px rgba(16, 185, 129, 0.6)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    canvas {
+      touch-action: none;
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    .shake-anim {
+      animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+    }
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-2px, 0, 0); }
+      20%, 80% { transform: translate3d(4px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+      40%, 60% { transform: translate3d(6px, 0, 0); }
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <i class="fa-solid fa-chart-line text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-lg text-white tracking-tight flex items-center gap-2">
+            Графічний Маніпулятор
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30">10 Клас</span>
+          </h1>
+          <p class="text-xs text-slate-400">Геометричні перетворення графіків функцій</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3 sm:space-x-4">
+        <!-- Streak & Points -->
+        <div class="flex items-center gap-3 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
+          <div class="flex items-center text-amber-400 text-sm font-bold gap-1" title="Серія правильних відповідей">
+            <i class="fa-solid fa-fire text-amber-500 animate-pulse"></i>
+            <span id="streak-counter">0</span>
+          </div>
+          <div class="h-4 w-px bg-slate-700"></div>
+          <div class="text-xs text-slate-300 font-semibold flex items-center gap-1">
+            <i class="fa-solid fa-trophy text-yellow-400"></i>
+            <span id="score-counter" class="text-white font-mono text-sm">0</span> балів
+          </div>
+        </div>
+
+        <!-- Mode Toggle -->
+        <button id="btn-mode-toggle" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-2">
+          <i class="fa-solid fa-cubes text-indigo-400"></i>
+          <span id="mode-text" class="hidden sm:inline">Перейти в Пісочницю</span>
+        </button>
+
+        <!-- Theory Modal Button -->
+        <button id="btn-theory" class="p-2 sm:px-3 sm:py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition flex items-center gap-2" title="Довідник правил">
+          <i class="fa-solid fa-book-open"></i>
+          <span class="hidden md:inline">Довідник</span>
+        </button>
+
+        <!-- Mute Sound Toggle -->
+        <button id="btn-sound" class="p-2 text-slate-400 hover:text-white transition rounded-lg hover:bg-slate-800" title="Увімкнути / Вимкнути звук">
+          <i class="fa-solid fa-volume-high text-base" id="sound-icon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+    <!-- Left Column: Interactive Canvas Coordinate Plane -->
+    <section class="lg:col-span-7 flex flex-col gap-4">
+      <div class="glass-panel rounded-2xl p-4 relative overflow-hidden shadow-2xl flex flex-col items-center border border-slate-800">
+        
+        <!-- Canvas Bar Info Overlay -->
+        <div class="w-full flex items-center justify-between mb-3 text-xs text-slate-400">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1 text-slate-300 font-medium">
+              <i class="fa-solid fa-hand-pointer text-brand-400"></i>
+              Перетягуйте вершину на сітці
+            </span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400">Крок: 1.0</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-reset-view" class="text-slate-400 hover:text-white transition flex items-center gap-1">
+              <i class="fa-solid fa-arrows-to-dot"></i> Центрувати
+            </button>
+          </div>
+        </div>
+
+        <!-- The Canvas Element -->
+        <div class="relative w-full aspect-square max-h-[540px] rounded-xl bg-slate-950 border border-slate-800 overflow-hidden shadow-inner flex items-center justify-center">
+          <canvas id="math-canvas" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+
+          <!-- Flash Feedback Overlay -->
+          <div id="canvas-feedback-overlay" class="absolute inset-0 pointer-events-none transition-opacity duration-300 opacity-0 bg-emerald-500/10"></div>
+
+          <!-- Status floating alert badge -->
+          <div id="status-badge" class="absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md bg-slate-900/90 border border-slate-700/80 text-slate-200 shadow-lg flex items-center gap-2 transition-all">
+            <span class="w-2 h-2 rounded-full bg-brand-500 animate-ping"></span>
+            <span id="status-badge-text">Розмістіть графік правильно</span>
+          </div>
+
+          <!-- Ghost Target Contour Toggle Button (Unlocks after 3 mistakes) -->
+          <button id="btn-show-contour" class="hidden absolute bottom-4 right-4 px-3 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 backdrop-blur-md shadow-lg transition flex items-center gap-2 animate-bounce-short">
+            <i class="fa-solid fa-eye"></i>
+            <span>Показати контур (підказка)</span>
+          </button>
+        </div>
+
+        <!-- Canvas Controls Footer Legend -->
+        <div class="w-full grid grid-cols-3 gap-2 mt-4 text-xs font-medium text-center">
+          <div class="p-2 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+            <span class="text-slate-300">Поточний графік</span>
+          </div>
+          <div id="target-legend" class="p-2 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-center gap-2 opacity-60 transition">
+            <span class="w-3 h-0.5 bg-sky-400 border border-dashed border-sky-400 inline-block"></span>
+            <span class="text-slate-300">Цільовий контур</span>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-brand-400 inline-block"></span>
+            <span class="text-slate-300">Маркер вершини</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Right Column: Task Details, Transformation Sliders & Feedback -->
+    <section class="lg:col-span-5 flex flex-col gap-6">
+
+      <!-- Task Card (Practice Mode) -->
+      <div id="task-card" class="glass-panel rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-brand-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-bullseye"></i>
+            Завдання <span id="task-number">1</span> з <span id="task-total">10</span>
+          </span>
+          <span id="task-difficulty" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Базовий рівень
+          </span>
+        </div>
+
+        <!-- Task Mathematical Target -->
+        <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-center relative overflow-hidden">
+          <p class="text-xs text-slate-400 mb-1">Побудуйте графік функції:</p>
+          <div id="target-formula-display" class="font-mono text-2xl font-extrabold text-sky-400 tracking-wide my-1">
+            y = (x - 2)² + 1
+          </div>
+          <p class="text-xs text-slate-400 mt-1">
+            Базова функція: <span id="base-formula-text" class="font-mono text-slate-200">f(x) = x²</span>
+          </p>
+        </div>
+
+        <!-- Interactive Transformation Controls -->
+        <div class="space-y-4 pt-2">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Параметри перетворення</h3>
+
+          <!-- Horizontal Shift Control (c) -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs font-medium">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-arrows-left-right text-brand-400"></i>
+                Зсув по осі Ox (вліво / вправо):
+              </span>
+              <span id="val-c" class="font-mono font-bold text-brand-400">c = 0</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <button class="btn-step px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm border border-slate-700" onclick="adjustParam('c', -1)">-1</button>
+              <input type="range" id="slider-c" min="-7" max="7" step="1" value="0" class="w-full accent-brand-500 bg-slate-800 rounded-lg cursor-pointer h-2">
+              <button class="btn-step px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm border border-slate-700" onclick="adjustParam('c', 1)">+1</button>
+            </div>
+          </div>
+
+          <!-- Vertical Shift Control (d) -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs font-medium">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-arrows-up-down text-emerald-400"></i>
+                Зсув по осі Oy (вгору / вниз):
+              </span>
+              <span id="val-d" class="font-mono font-bold text-emerald-400">d = 0</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <button class="btn-step px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm border border-slate-700" onclick="adjustParam('d', -1)">-1</button>
+              <input type="range" id="slider-d" min="-7" max="7" step="1" value="0" class="w-full accent-emerald-500 bg-slate-800 rounded-lg cursor-pointer h-2">
+              <button class="btn-step px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm border border-slate-700" onclick="adjustParam('d', 1)">+1</button>
+            </div>
+          </div>
+
+          <!-- Vertical Scale / Reflection (a) -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs font-medium">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-arrows-up-to-line text-purple-400"></i>
+                Розтяг / Стиск / Відображення (a):
+              </span>
+              <span id="val-a" class="font-mono font-bold text-purple-400">a = 1</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <button class="btn-step px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm border border-slate-700" onclick="adjustParam('a', -0.5)">-0.5</button>
+              <input type="range" id="slider-a" min="-3" max="3" step="0.5" value="1" class="w-full accent-purple-500 bg-slate-800 rounded-lg cursor-pointer h-2">
+              <button class="btn-step px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm border border-slate-700" onclick="adjustParam('a', 0.5)">+0.5</button>
+            </div>
+            <button id="btn-flip-v" onclick="toggleFlipV()" class="w-full mt-2 py-2 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold text-xs transition flex items-center justify-center gap-2 active:scale-95">
+              <i class="fa-solid fa-arrows-up-down text-purple-400"></i>
+              <span id="btn-flip-v-text">Перевернути вертикально (a → -a)</span>
+            </button>
+          </div>
+
+          <!-- Absolute Value Toggle (Optional for higher levels) -->
+          <div id="abs-toggle-container" class="hidden pt-1 items-center justify-between border-t border-slate-800">
+            <span class="text-xs text-slate-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-bolt text-amber-400"></i>
+              Модуль усієї функції |f(x)|:
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="toggle-abs" class="sr-only peer">
+              <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+            </label>
+          </div>
+
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pt-3 flex gap-3">
+          <button id="btn-check" class="flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white shadow-lg shadow-brand-500/25 transition active:scale-[0.98] flex items-center justify-center gap-2">
+            <i class="fa-solid fa-check-circle text-base"></i>
+            Перевірити відповідь
+          </button>
+          
+          <button id="btn-next-task" class="hidden flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/25 transition active:scale-[0.98] flex items-center justify-center gap-2 animate-pulse">
+            Наступне завдання
+            <i class="fa-solid fa-arrow-right text-base"></i>
+          </button>
+        </div>
+
+        <!-- Hints & Solution Explanation Box -->
+        <div id="feedback-box" class="hidden p-4 rounded-xl border text-xs leading-relaxed transition-all">
+          <div id="feedback-header" class="font-bold mb-1 flex items-center gap-2 text-sm"></div>
+          <div id="feedback-message" class="text-slate-300"></div>
+          
+          <!-- Detailed Math Explanation (Revealed on correct) -->
+          <div id="feedback-explanation" class="hidden mt-3 pt-3 border-t border-slate-700/60 text-slate-300 space-y-1">
+            <p class="font-semibold text-emerald-400">Кроки перетворення:</p>
+            <ul id="explanation-list" class="list-disc list-inside space-y-1 text-slate-300"></ul>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Sandbox Panel (Visible only in Sandbox Mode) -->
+      <div id="sandbox-card" class="hidden glass-panel rounded-2xl p-5 border border-slate-800 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-flask"></i>
+            Режим Пісочниці
+          </span>
+          <span class="text-xs text-slate-400">Вільне дослідження</span>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-300 font-medium mb-1.5 block">Оберіть базову функцію:</label>
+          <select id="sandbox-base-select" class="w-full bg-slate-900 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-500 outline-none">
+            <option value="x2">f(x) = x² (Парабола)</option>
+            <option value="abs">f(x) = |x| (Модуль)</option>
+            <option value="sqrt">f(x) = √x (Квадратний корінь)</option>
+            <option value="inv">f(x) = 1/x (Гіпербола)</option>
+            <option value="x3">f(x) = x³ (Кубічна парабола)</option>
+          </select>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-center">
+          <p class="text-xs text-slate-400 mb-1">Сконструйована формула:</p>
+          <div id="sandbox-formula-output" class="font-mono text-xl font-bold text-amber-400">
+            y = 1 · (x - 0)² + 0
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Theory Cheat-Sheet Modal -->
+  <div id="modal-theory" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-graduation-cap text-indigo-400 text-xl"></i>
+          <h2 class="text-lg font-bold text-white">Довідник: Перетворення графіків</h2>
+        </div>
+        <button id="btn-close-theory" class="text-slate-400 hover:text-white transition p-1">
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto space-y-4 custom-scrollbar text-sm text-slate-300">
+        
+        <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-1">
+          <span class="font-bold text-brand-400 font-mono">1. y = f(x) + d</span>
+          <p class="text-xs">Паралельне перенесення графіку вздовж осі <span class="font-semibold text-white">Oy</span> на <span class="font-mono text-emerald-400">|d|</span> одиниць:</p>
+          <ul class="list-disc list-inside text-xs text-slate-400 pl-2">
+            <li>Якщо <span class="font-mono text-emerald-400">d > 0</span> — вгору</li>
+            <li>Якщо <span class="font-mono text-emerald-400">d < 0</span> — вниз</li>
+          </ul>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-1">
+          <span class="font-bold text-brand-400 font-mono">2. y = f(x - c)</span>
+          <p class="text-xs">Паралельне перенесення графіку вздовж осі <span class="font-semibold text-white">Ox</span> на <span class="font-mono text-brand-400">|c|</span> одиниць:</p>
+          <ul class="list-disc list-inside text-xs text-slate-400 pl-2">
+            <li>Якщо <span class="font-mono text-brand-400">c > 0</span> (у формулі <span class="font-mono">x - c</span>) — праворуч</li>
+            <li>Якщо <span class="font-mono text-brand-400">c < 0</span> (у формулі <span class="font-mono">x + |c|</span>) — ліворуч</li>
+          </ul>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-1">
+          <span class="font-bold text-brand-400 font-mono">3. y = -f(x)</span>
+          <p class="text-xs">Дзеркальне відображення графіку відносно осі <span class="font-semibold text-white">Ox</span> (перевертання за допомогою від'ємного коефіцієнта <span class="font-mono text-purple-400">a = -1</span>).</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-1">
+          <span class="font-bold text-brand-400 font-mono">4. y = a · f(x)</span>
+          <p class="text-xs">Розтяг або стиск вздовж осі <span class="font-semibold text-white">Oy</span> у <span class="font-mono text-purple-400">|a|</span> разів:</p>
+          <ul class="list-disc list-inside text-xs text-slate-400 pl-2">
+            <li>Якщо <span class="font-mono text-purple-400 font-bold">|a| > 1</span> — розтяг від осі Ox</li>
+            <li>Якщо <span class="font-mono text-purple-400 font-bold">0 < |a| < 1</span> — стиск до осі Ox</li>
+          </ul>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-1">
+          <span class="font-bold text-brand-400 font-mono">5. y = |f(x)|</span>
+          <p class="text-xs">Частина графіку, розташована нижче осі <span class="font-semibold text-white">Ox</span>, симетрично відображається в верхню півплощину.</p>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 border-t border-slate-800 bg-slate-900/90 text-right">
+        <button id="btn-close-theory-footer" class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition">
+          Зрозуміло
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* ========================================================================
+       1. SOUND ENGINE (Synthesized via Web Audio API - No external files needed)
+       ======================================================================== */
+    class AudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+      }
+
+      playSuccess() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+
+          gain.gain.setValueAtTime(0.2, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.3);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.35);
+        });
+      }
+
+      playError() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.25);
+
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+
+      playSnap() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.05);
+      }
+    }
+
+    const sound = new AudioEngine();
+
+    /* ========================================================================
+       2. TASK DATABASE (Comprehensive 10th Grade Math Curriculum)
+       ======================================================================== */
+    const TASKS = [
+      {
+        id: 1,
+        baseType: 'x2',
+        baseName: 'f(x) = x²',
+        target: { a: 1, c: 0, d: 3, isAbs: false },
+        title: 'Паралельне перенесення вгору',
+        difficulty: 'Базовий',
+        difficultyColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+        hintVertical: 'Якщо до всієї функції додається +d, графік зміщується ВГОРУ.',
+        hintHorizontal: 'В даному завданні горизонтальний зсув не потрібен (c = 0).',
+        hintScale: 'Графік не розтягується і не перевертається (a = 1).'
+      },
+      {
+        id: 2,
+        baseType: 'x2',
+        baseName: 'f(x) = x²',
+        target: { a: 1, c: 3, d: 0, isAbs: false },
+        title: 'Паралельне перенесення праворуч',
+        difficulty: 'Базовий',
+        difficultyColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+        hintHorizontal: 'Пам\'ятай: у формулі (x - c)² від’ємний знак означає зсув ПРАВОРУЧ на c одиниць!',
+        hintVertical: 'Вертикальний зсув відсутній (d = 0).',
+        hintScale: 'Ширина параболи стандартна (a = 1).'
+      },
+      {
+        id: 3,
+        baseType: 'abs',
+        baseName: 'f(x) = |x|',
+        target: { a: 1, c: -2, d: -3, isAbs: false },
+        title: 'Комбінований зсув модуля',
+        difficulty: 'Середній',
+        difficultyColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        hintHorizontal: 'Вираз (x + 2) відповідає зсуву ЛІВОРУЧ на 2 одиниці (c = -2).',
+        hintVertical: 'Віднімання 3 в кінці зміщує вершину ВНИЗ на 3 (d = -3).',
+        hintScale: 'Кут нахилу віток модуля не змінюється (a = 1).'
+      },
+      {
+        id: 4,
+        baseType: 'x2',
+        baseName: 'f(x) = x²',
+        target: { a: -1, c: 1, d: 4, isAbs: false },
+        title: 'Перевертання та зсув',
+        difficulty: 'Середній',
+        difficultyColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        hintScale: 'Мінус перед функцією (a = -1) перевертає вітки параболи ВНИЗ відносно осі Ox.',
+        hintHorizontal: 'Зсунь вершину ПРАВОРУЧ на 1 одиницю (c = 1).',
+        hintVertical: 'Зсунь вершину ВГОРУ на 4 одиниці (d = 4).'
+      },
+      {
+        id: 5,
+        baseType: 'sqrt',
+        baseName: 'f(x) = √x',
+        target: { a: 1, c: 2, d: -1, isAbs: false },
+        title: 'Перетворення графіку квадратного кореня',
+        difficulty: 'Середній',
+        difficultyColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        hintHorizontal: 'Початкова точка кореня переміщується ПРАВОРУЧ на 2 (c = 2).',
+        hintVertical: 'Початкова точка переміщується ВНИЗ на 1 (d = -1).',
+        hintScale: 'Форма вітки кореня стандартна (a = 1).'
+      },
+      {
+        id: 6,
+        baseType: 'x2',
+        baseName: 'f(x) = x²',
+        target: { a: 2, c: -1, d: -2, isAbs: false },
+        title: 'Вертикальний розтяг параболи',
+        difficulty: 'Високий',
+        difficultyColor: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+        hintScale: 'Коефіцієнт a = 2 звужує (розтягує вгору) параболу вдвічі!',
+        hintHorizontal: 'Зсув ЛІВОРУЧ на 1 (c = -1).',
+        hintVertical: 'Зсув ВНИЗ на 2 (d = -2).'
+      },
+      {
+        id: 7,
+        baseType: 'x2',
+        baseName: 'f(x) = x²',
+        target: { a: 1, c: 0, d: -4, isAbs: true },
+        title: 'Модуль функції y = |x² - 4|',
+        difficulty: 'Майстер',
+        difficultyColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+        hintAbs: 'Увімкніть перемикач модуля |f(x)|! Частина параболи нижче осі Ox відобразиться вгору.',
+        hintVertical: 'Спочатку опустіть параболу ВНИЗ на 4 одиниці (d = -4).',
+        hintHorizontal: 'Центр залишається на осі Oy (c = 0).'
+      },
+      {
+        id: 8,
+        baseType: 'abs',
+        baseName: 'f(x) = |x|',
+        target: { a: -1, c: 3, d: 2, isAbs: false },
+        title: 'Відображення та зсув модуля',
+        difficulty: 'Середній',
+        difficultyColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        hintScale: 'Скористайтеся кнопкою «Перевернути вертикально» (a = -1).',
+        hintHorizontal: 'Перемістіть вершину ПРАВОРУЧ на 3 одиниці (c = 3).',
+        hintVertical: 'Перемістіть вершину ВГОРУ на 2 одиниці (d = 2).'
+      },
+      {
+        id: 9,
+        baseType: 'sqrt',
+        baseName: 'f(x) = √x',
+        target: { a: -1, c: -3, d: 3, isAbs: false },
+        title: 'Перевертання та зсув кореня',
+        difficulty: 'Високий',
+        difficultyColor: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+        hintScale: 'Переверніть вітку кореня вниз за допомогою a = -1.',
+        hintHorizontal: 'Зсуньте початкову точку ЛІВОРУЧ на 3 (c = -3).',
+        hintVertical: 'Підніміть графік ВГОРУ на 3 одиниці (d = 3).'
+      },
+      {
+        id: 10,
+        baseType: 'x3',
+        baseName: 'f(x) = x³',
+        target: { a: 1, c: -2, d: -1, isAbs: false },
+        title: 'Кубічна парабола y = (x + 2)³ - 1',
+        difficulty: 'Високий',
+        difficultyColor: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+        hintHorizontal: 'Точка перегину кубічної параболи зміщується ЛІВОРУЧ на 2 (c = -2).',
+        hintVertical: 'Опустіть точку перегину ВНИЗ на 1 (d = -1).',
+        hintScale: 'Форма кубічної параболи стандартна (a = 1).'
+      },
+      {
+        id: 11,
+        baseType: 'inv',
+        baseName: 'f(x) = 1/x',
+        target: { a: 1, c: 2, d: 1, isAbs: false },
+        title: 'Зсув гіперболи y = 1/(x - 2) + 1',
+        difficulty: 'Високий',
+        difficultyColor: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+        hintHorizontal: 'Вертикальна асимптота зміщується ПРАВОРУЧ у точку x = 2 (c = 2).',
+        hintVertical: 'Горизонтальна асимптота зміщується ВГОРУ в точку y = 1 (d = 1).',
+        hintScale: 'Вітки гіперболи мають стандартну форму (a = 1).'
+      },
+      {
+        id: 12,
+        baseType: 'abs',
+        baseName: 'f(x) = |x|',
+        target: { a: 2, c: -1, d: -3, isAbs: true },
+        title: 'Складне перетворення модуля y = ||2(x + 1)| - 3|',
+        difficulty: 'Майстер',
+        difficultyColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+        hintScale: 'Розтягніть графік модуля у 2 рази (a = 2).',
+        hintHorizontal: 'Зсув ЛІВОРУЧ на 1 (c = -1).',
+        hintVertical: 'Зсув ВНИЗ на 3 (d = -3).',
+        hintAbs: 'Застосуйте модуль |f(x)|, щоб відобразити нижню частину вгору!'
+      }
+    ];
+
+    /* ========================================================================
+       3. APP STATE
+       ======================================================================== */
+    let currentTaskIdx = 0;
+    let userParams = { a: 1, c: 0, d: 0, isAbs: false };
+    let mistakesCount = 0;
+    let score = 0;
+    let streak = 0;
+    let isTaskSolved = false;
+    let showGhostContour = false;
+    let isSandbox = false;
+
+    // Canvas state
+    let canvas, ctx;
+    let scale = 36; // pixels per math unit
+    let originX = 0;
+    let originY = 0;
+    let isDraggingCanvas = false;
+    let isDraggingVertex = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+
+    /* ========================================================================
+       4. CANVAS GRAPHICS RENDERER
+       ======================================================================== */
+    function initCanvas() {
+      canvas = document.getElementById('math-canvas');
+      ctx = canvas.getContext('2d');
+      resizeCanvas();
+
+      window.addEventListener('resize', resizeCanvas);
+
+      // Mouse & Touch events for Canvas interactive drag
+      canvas.addEventListener('mousedown', handlePointerDown);
+      canvas.addEventListener('mousemove', handlePointerMove);
+      window.addEventListener('mouseup', handlePointerUp);
+
+      canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+      canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handlePointerUp);
+    }
+
+    function resizeCanvas() {
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      originX = canvas.width / 2;
+      originY = canvas.height / 2;
+      render();
+    }
+
+    // Convert Math coordinates to Canvas Pixels
+    function mathToPx(x, y) {
+      return {
+        px: originX + x * scale,
+        py: originY - y * scale
+      };
+    }
+
+    // Convert Canvas Pixels to Math coordinates
+    function pxToMath(px, py) {
+      return {
+        x: (px - originX) / scale,
+        y: (originY - py) / scale
+      };
+    }
+
+    function evalFunction(baseType, x, a, c, d, isAbs) {
+      let val = 0;
+      const xShifted = x - c;
+
+      switch (baseType) {
+        case 'x2':
+          val = a * Math.pow(xShifted, 2) + d;
+          break;
+        case 'abs':
+          val = a * Math.abs(xShifted) + d;
+          break;
+        case 'sqrt':
+          if (xShifted < 0) return NaN;
+          val = a * Math.sqrt(xShifted) + d;
+          break;
+        case 'inv':
+          if (Math.abs(xShifted) < 0.05) return NaN;
+          val = a * (1 / xShifted) + d;
+          break;
+        case 'x3':
+          val = a * Math.pow(xShifted, 3) + d;
+          break;
+      }
+
+      if (isAbs) {
+        val = Math.abs(val);
+      }
+      return val;
+    }
+
+    function render() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Grid
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#1e293b';
+
+      const minX = Math.floor((-originX) / scale);
+      const maxX = Math.ceil((canvas.width - originX) / scale);
+      const minY = Math.floor((originY - canvas.height) / scale);
+      const maxY = Math.ceil((originY) / scale);
+
+      for (let x = minX; x <= maxX; x++) {
+        const { px } = mathToPx(x, 0);
+        ctx.beginPath();
+        ctx.strokeStyle = (x === 0) ? '#475569' : '#1e293b';
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px, canvas.height);
+        ctx.stroke();
+      }
+
+      for (let y = minY; y <= maxY; y++) {
+        const { py } = mathToPx(0, y);
+        ctx.beginPath();
+        ctx.strokeStyle = (y === 0) ? '#475569' : '#1e293b';
+        ctx.moveTo(0, py);
+        ctx.lineTo(canvas.width, py);
+        ctx.stroke();
+      }
+
+      // Draw Main Axes (Ox and Oy)
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#94a3b8';
+
+      // Ox
+      ctx.beginPath();
+      ctx.moveTo(0, originY);
+      ctx.lineTo(canvas.width, originY);
+      ctx.stroke();
+
+      // Oy
+      ctx.beginPath();
+      ctx.moveTo(originX, 0);
+      ctx.lineTo(originX, canvas.height);
+      ctx.stroke();
+
+      // Draw Axes Numbers
+      ctx.fillStyle = '#64748b';
+      ctx.font = '11px Plus Jakarta Sans, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+
+      for (let x = minX; x <= maxX; x++) {
+        if (x !== 0 && x % 2 === 0) {
+          const { px, py } = mathToPx(x, 0);
+          ctx.fillText(x.toString(), px, py + 4);
+        }
+      }
+
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      for (let y = minY; y <= maxY; y++) {
+        if (y !== 0 && y % 2 === 0) {
+          const { px, py } = mathToPx(0, y);
+          ctx.fillText(y.toString(), px - 6, py);
+        }
+      }
+
+      // Draw Ghost Target Curve (if enabled or unlocked after 3 mistakes)
+      const task = TASKS[currentTaskIdx];
+      if (!isSandbox && (showGhostContour || isTaskSolved)) {
+        drawCurve(task.baseType, task.target.a, task.target.c, task.target.d, task.target.isAbs, '#38bdf8', 2.5, true);
+      }
+
+      // Draw User's Dynamic Function Curve
+      const activeBaseType = isSandbox ? document.getElementById('sandbox-base-select').value : task.baseType;
+      const curveColor = isTaskSolved ? '#10b981' : '#f59e0b';
+      drawCurve(activeBaseType, userParams.a, userParams.c, userParams.d, userParams.isAbs, curveColor, 3.5, false);
+
+      // Draw Key Point Marker / Vertex Handle
+      const vertex = mathToPx(userParams.c, userParams.d);
+      ctx.beginPath();
+      ctx.arc(vertex.px, vertex.py, 8, 0, 2 * Math.PI);
+      ctx.fillStyle = isTaskSolved ? '#10b981' : '#3b82f6';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      // Pulsing outer aura for vertex handle
+      if (!isTaskSolved) {
+        ctx.beginPath();
+        ctx.arc(vertex.px, vertex.py, 13, 0, 2 * Math.PI);
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+
+    function drawCurve(baseType, a, c, d, isAbs, color, lineWidth, isDashed = false) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+
+      if (isDashed) {
+        ctx.setLineDash([6, 6]);
+      } else {
+        ctx.setLineDash([]);
+      }
+
+      const stepPx = 2; // High resolution plotting
+      let isFirst = true;
+
+      for (let px = 0; px <= canvas.width; px += stepPx) {
+        const mathPt = pxToMath(px, 0);
+        const mathY = evalFunction(baseType, mathPt.x, a, c, d, isAbs);
+
+        if (isNaN(mathY) || !isFinite(mathY)) {
+          isFirst = true;
+          continue;
+        }
+
+        const { py } = mathToPx(0, mathY);
+
+        if (py < -100 || py > canvas.height + 100) {
+          isFirst = true;
+          continue;
+        }
+
+        if (isFirst) {
+          ctx.moveTo(px, py);
+          isFirst = false;
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function handlePointerDown(e) {
+      if (isTaskSolved) return;
+      const rect = canvas.getBoundingClientRect();
+      const clickPx = e.clientX - rect.left;
+      const clickPy = e.clientY - rect.top;
+
+      const vertexPx = mathToPx(userParams.c, userParams.d);
+      const distToVertex = Math.hypot(clickPx - vertexPx.px, clickPy - vertexPx.py);
+
+      if (distToVertex <= 20) {
+        isDraggingVertex = true;
+        canvas.style.cursor = 'grabbing';
+      }
+    }
+
+    function handlePointerMove(e) {
+      if (isTaskSolved) return;
+      const rect = canvas.getBoundingClientRect();
+      const clickPx = e.clientX - rect.left;
+      const clickPy = e.clientY - rect.top;
+
+      if (isDraggingVertex) {
+        const mathPt = pxToMath(clickPx, clickPy);
+        
+        // Snap to nearest integer for intuitive grid positioning
+        const snappedC = Math.min(7, Math.max(-7, Math.round(mathPt.x)));
+        const snappedD = Math.min(7, Math.max(-7, Math.round(mathPt.y)));
+
+        if (snappedC !== userParams.c || snappedD !== userParams.d) {
+          userParams.c = snappedC;
+          userParams.d = snappedD;
+          sound.playSnap();
+          updateUIControls();
+          render();
+        }
+      } else {
+        const vertexPx = mathToPx(userParams.c, userParams.d);
+        const distToVertex = Math.hypot(clickPx - vertexPx.px, clickPy - vertexPx.py);
+        canvas.style.cursor = (distToVertex <= 20) ? 'grab' : 'default';
+      }
+    }
+
+    function handlePointerUp() {
+      isDraggingVertex = false;
+      if (canvas) canvas.style.cursor = 'default';
+    }
+
+    function handleTouchStart(e) {
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        handlePointerDown({ clientX: touch.clientX, clientY: touch.clientY });
+      }
+    }
+
+    function handleTouchMove(e) {
+      if (e.touches.length === 1 && isDraggingVertex) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        handlePointerMove({ clientX: touch.clientX, clientY: touch.clientY });
+      }
+    }
+
+    /* ========================================================================
+       5. UI CONTROLS & FORMULA FORMATTING
+       ======================================================================== */
+    function updateUIControls() {
+      document.getElementById('slider-c').value = userParams.c;
+      document.getElementById('slider-d').value = userParams.d;
+      document.getElementById('slider-a').value = userParams.a;
+      document.getElementById('toggle-abs').checked = userParams.isAbs;
+
+      document.getElementById('val-c').textContent = `c = ${userParams.c > 0 ? '+' + userParams.c : userParams.c}`;
+      document.getElementById('val-d').textContent = `d = ${userParams.d > 0 ? '+' + userParams.d : userParams.d}`;
+      document.getElementById('val-a').textContent = `a = ${userParams.a}`;
+
+      // Update vertical flip button styling dynamically
+      const flipBtn = document.getElementById('btn-flip-v');
+      const flipBtnText = document.getElementById('btn-flip-v-text');
+      if (flipBtn && flipBtnText) {
+        if (userParams.a < 0) {
+          flipBtn.className = 'w-full mt-2 py-2 px-3 rounded-xl bg-purple-600/30 text-purple-200 border border-purple-400 font-semibold text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20';
+          flipBtnText.textContent = 'Графік перевернуто (a < 0)';
+        } else {
+          flipBtn.className = 'w-full mt-2 py-2 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold text-xs transition flex items-center justify-center gap-2 active:scale-95';
+          flipBtnText.textContent = 'Перевернути вертикально (a → -a)';
+        }
+      }
+
+      if (isSandbox) {
+        const baseType = document.getElementById('sandbox-base-select').value;
+        document.getElementById('sandbox-formula-output').textContent = formatFormula(baseType, userParams.a, userParams.c, userParams.d, userParams.isAbs);
+      }
+    }
+
+    function toggleFlipV() {
+      if (isTaskSolved) return;
+      userParams.a = parseFloat((-userParams.a).toFixed(1));
+      sound.playSnap();
+      updateUIControls();
+      render();
+    }
+
+    function adjustParam(param, delta) {
+      if (isTaskSolved) return;
+      if (param === 'c') {
+        userParams.c = Math.min(7, Math.max(-7, userParams.c + delta));
+      } else if (param === 'd') {
+        userParams.d = Math.min(7, Math.max(-7, userParams.d + delta));
+      } else if (param === 'a') {
+        userParams.a = Math.min(3, Math.max(-3, parseFloat((userParams.a + delta).toFixed(1))));
+      }
+      sound.playSnap();
+      updateUIControls();
+      render();
+    }
+
+    function formatFormula(baseType, a, c, d, isAbs) {
+      let fStr = '';
+
+      // Format horizontal shift term
+      let innerX = 'x';
+      if (c > 0) innerX = `(x - ${c})`;
+      else if (c < 0) innerX = `(x + ${Math.abs(c)})`;
+
+      switch (baseType) {
+        case 'x2':
+          fStr = innerX === 'x' ? 'x²' : `${innerX}²`;
+          break;
+        case 'abs':
+          fStr = innerX === 'x' ? '|x|' : `|${innerX.replace(/\(|\)/g, '')}|`;
+          break;
+        case 'sqrt':
+          fStr = innerX === 'x' ? '√x' : `√${innerX}`;
+          break;
+        case 'inv':
+          fStr = innerX === 'x' ? '1/x' : `1/${innerX}`;
+          break;
+        case 'x3':
+          fStr = innerX === 'x' ? 'x³' : `${innerX}³`;
+          break;
+      }
+
+      // Format multiplier a
+      if (a === -1) fStr = `-${fStr}`;
+      else if (a !== 1) fStr = `${a} · ${fStr}`;
+
+      // Format vertical shift d
+      if (d > 0) fStr = `${fStr} + ${d}`;
+      else if (d < 0) fStr = `${fStr} - ${Math.abs(d)}`;
+
+      if (isAbs) {
+        fStr = `| ${fStr} |`;
+      }
+
+      return `y = ${fStr}`;
+    }
+
+    /* ========================================================================
+       6. SIMULATOR GAME LOGIC & FEEDBACK MECHANICS
+       ======================================================================== */
+    function loadTask(idx) {
+      currentTaskIdx = idx;
+      const task = TASKS[idx];
+
+      isTaskSolved = false;
+      mistakesCount = 0;
+      showGhostContour = false;
+
+      // Reset user parameters
+      userParams = { a: 1, c: 0, d: 0, isAbs: false };
+
+      // Update UI elements
+      document.getElementById('task-number').textContent = task.id;
+      document.getElementById('task-total').textContent = TASKS.length;
+      document.getElementById('task-difficulty').textContent = task.difficulty;
+      document.getElementById('task-difficulty').className = `px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${task.difficultyColor}`;
+
+      document.getElementById('base-formula-text').textContent = task.baseName;
+      document.getElementById('target-formula-display').textContent = formatFormula(
+        task.baseType,
+        task.target.a,
+        task.target.c,
+        task.target.d,
+        task.target.isAbs
+      );
+
+      // Hide ghost button and feedback
+      document.getElementById('btn-show-contour').classList.add('hidden');
+      document.getElementById('feedback-box').classList.add('hidden');
+      document.getElementById('btn-check').classList.remove('hidden');
+      document.getElementById('btn-next-task').classList.add('hidden');
+
+      // Module toggle visibility
+      const absContainer = document.getElementById('abs-toggle-container');
+      if (task.target.isAbs || idx >= 5) {
+        absContainer.classList.remove('hidden');
+        absContainer.classList.add('flex');
+      } else {
+        absContainer.classList.add('hidden');
+        absContainer.classList.remove('flex');
+      }
+
+      document.getElementById('status-badge-text').textContent = 'Розмістіть графік правильно';
+      document.getElementById('status-badge').className = 'absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md bg-slate-900/90 border border-slate-700/80 text-slate-200 shadow-lg flex items-center gap-2';
+
+      updateUIControls();
+      render();
+    }
+
+    function checkAnswer() {
+      if (isTaskSolved) return;
+
+      const task = TASKS[currentTaskIdx];
+      const target = task.target;
+
+      // Check if parameters match target
+      const isCorrect = (
+        userParams.a === target.a &&
+        userParams.c === target.c &&
+        userParams.d === target.d &&
+        userParams.isAbs === target.isAbs
+      );
+
+      const feedbackBox = document.getElementById('feedback-box');
+      const feedbackHeader = document.getElementById('feedback-header');
+      const feedbackMessage = document.getElementById('feedback-message');
+      const feedbackExp = document.getElementById('feedback-explanation');
+      const expList = document.getElementById('explanation-list');
+      const flashOverlay = document.getElementById('canvas-feedback-overlay');
+
+      feedbackBox.classList.remove('hidden');
+
+      if (isCorrect) {
+        // --- CORRECT RESPONSE MECHANICS ---
+        isTaskSolved = true;
+        sound.playSuccess();
+
+        // Flash green overlay
+        flashOverlay.className = 'absolute inset-0 pointer-events-none transition-opacity duration-500 opacity-100 bg-emerald-500/20';
+        setTimeout(() => { flashOverlay.classList.add('opacity-0'); }, 600);
+
+        // Update score & streak
+        streak++;
+        const pointsAwarded = Math.max(10, 100 - mistakesCount * 25);
+        score += pointsAwarded * (streak > 1 ? 1.5 : 1);
+
+        document.getElementById('score-counter').textContent = Math.round(score);
+        document.getElementById('streak-counter').textContent = streak;
+
+        // Feedback styling
+        feedbackBox.className = 'p-4 rounded-xl border border-emerald-500/40 bg-emerald-950/40 text-xs leading-relaxed transition-all animate-glow-success';
+        feedbackHeader.className = 'font-bold mb-1 flex items-center gap-2 text-sm text-emerald-400';
+        feedbackHeader.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-base"></i> Відмінно! Графік побудовано правильно (+${Math.round(pointsAwarded)} балів)`;
+        
+        feedbackMessage.textContent = 'Ви правильно застосували геометричні перетворення для цієї функції!';
+
+        // Generate step-by-step math explanation breakdown
+        expList.innerHTML = '';
+        if (target.c !== 0) {
+          const dir = target.c > 0 ? 'праворуч' : 'ліворуч';
+          expList.innerHTML += `<li>Зсув осі Ox на <strong>${Math.abs(target.c)}</strong> од. <strong>${dir}</strong>.</li>`;
+        }
+        if (target.d !== 0) {
+          const dir = target.d > 0 ? 'вгору' : 'вниз';
+          expList.innerHTML += `<li>Зсув осі Oy на <strong>${Math.abs(target.d)}</strong> од. <strong>${dir}</strong>.</li>`;
+        }
+        if (target.a !== 1) {
+          if (target.a < 0) {
+            expList.innerHTML += `<li>Симетричне відображення відносно осі Ox (a = ${target.a}).</li>`;
+          } else {
+            expList.innerHTML += `<li>Вертикальний розтяг/стиск з коефіцієнтом a = ${target.a}.</li>`;
+          }
+        }
+        if (target.isAbs) {
+          expList.innerHTML += `<li>Відображення від’ємної частини графіку вгору за рахунок модуля |f(x)|.</li>`;
+        }
+
+        feedbackExp.classList.remove('hidden');
+
+        // Toggle action buttons
+        document.getElementById('btn-check').classList.add('hidden');
+        document.getElementById('btn-next-task').classList.remove('hidden');
+
+        document.getElementById('status-badge-text').textContent = 'Правильно! Графік зафіксовано';
+        document.getElementById('status-badge').className = 'absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md bg-emerald-900/90 border border-emerald-500/80 text-emerald-200 shadow-lg flex items-center gap-2';
+
+        render();
+
+      } else {
+        // --- INCORRECT RESPONSE MECHANICS ---
+        mistakesCount++;
+        sound.playError();
+
+        // Shake canvas container
+        const canvasContainer = canvas.parentElement;
+        canvasContainer.classList.add('shake-anim');
+        setTimeout(() => canvasContainer.classList.remove('shake-anim'), 400);
+
+        // Flash red overlay
+        flashOverlay.className = 'absolute inset-0 pointer-events-none transition-opacity duration-300 opacity-100 bg-rose-500/20';
+        setTimeout(() => { flashOverlay.classList.add('opacity-0'); }, 400);
+
+        streak = 0; // Reset streak
+        document.getElementById('streak-counter').textContent = streak;
+
+        feedbackBox.className = 'p-4 rounded-xl border border-rose-500/40 bg-rose-950/40 text-xs leading-relaxed transition-all';
+        feedbackHeader.className = 'font-bold mb-1 flex items-center gap-2 text-sm text-rose-400';
+        feedbackHeader.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-400 text-base"></i> Незовсім вірно (Спроба ${mistakesCount})`;
+
+        // Construct targeted constructive hint without giving full answer
+        let hintText = 'Перевірте розміщення графіку. ';
+        if (userParams.c !== target.c && task.hintHorizontal) {
+          hintText += task.hintHorizontal + ' ';
+        } else if (userParams.d !== target.d && task.hintVertical) {
+          hintText += task.hintVertical + ' ';
+        } else if (userParams.a !== target.a && task.hintScale) {
+          hintText += task.hintScale + ' ';
+        } else if (userParams.isAbs !== target.isAbs && task.hintAbs) {
+          hintText += task.hintAbs + ' ';
+        }
+
+        feedbackMessage.textContent = hintText;
+        feedbackExp.classList.add('hidden');
+
+        // Unlock ghost line button after 3 mistakes
+        if (mistakesCount >= 3) {
+          document.getElementById('btn-show-contour').classList.remove('hidden');
+        }
+
+        document.getElementById('status-badge-text').textContent = 'Помилка. Спробуйте ще раз';
+        document.getElementById('status-badge').className = 'absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md bg-rose-900/90 border border-rose-500/80 text-rose-200 shadow-lg flex items-center gap-2';
+      }
+    }
+
+    /* ========================================================================
+       7. EVENT LISTENERS & INITIALIZATION
+       ======================================================================== */
+    document.addEventListener('DOMContentLoaded', () => {
+      initCanvas();
+
+      // Sliders event listeners
+      document.getElementById('slider-c').addEventListener('input', (e) => {
+        userParams.c = parseInt(e.target.value);
+        updateUIControls();
+        render();
+      });
+
+      document.getElementById('slider-d').addEventListener('input', (e) => {
+        userParams.d = parseInt(e.target.value);
+        updateUIControls();
+        render();
+      });
+
+      document.getElementById('slider-a').addEventListener('input', (e) => {
+        userParams.a = parseFloat(e.target.value);
+        updateUIControls();
+        render();
+      });
+
+      document.getElementById('toggle-abs').addEventListener('change', (e) => {
+        userParams.isAbs = e.target.checked;
+        updateUIControls();
+        render();
+      });
+
+      // Sandbox base function select
+      document.getElementById('sandbox-base-select').addEventListener('change', () => {
+        updateUIControls();
+        render();
+      });
+
+      // Check Button
+      document.getElementById('btn-check').addEventListener('click', checkAnswer);
+
+      // Next Task Button
+      document.getElementById('btn-next-task').addEventListener('click', () => {
+        if (currentTaskIdx < TASKS.length - 1) {
+          loadTask(currentTaskIdx + 1);
+        } else {
+          // Completed all tasks!
+          alert('Вітаємо! Ви успішно пройшли всі тренувальні завдання!');
+          loadTask(0);
+        }
+      });
+
+      // Ghost Contour Button
+      document.getElementById('btn-show-contour').addEventListener('click', () => {
+        showGhostContour = true;
+        document.getElementById('btn-show-contour').classList.add('hidden');
+        document.getElementById('target-legend').classList.remove('opacity-60');
+        render();
+      });
+
+      // Center View Button
+      document.getElementById('btn-reset-view').addEventListener('click', () => {
+        originX = canvas.width / 2;
+        originY = canvas.height / 2;
+        render();
+      });
+
+      // Sound Toggle
+      document.getElementById('btn-sound').addEventListener('click', () => {
+        sound.muted = !sound.muted;
+        const icon = document.getElementById('sound-icon');
+        if (sound.muted) {
+          icon.className = 'fa-solid fa-volume-xmark text-base text-rose-400';
+        } else {
+          icon.className = 'fa-solid fa-volume-high text-base text-slate-400';
+        }
+      });
+
+      // Mode Switcher (Practice vs Sandbox)
+      document.getElementById('btn-mode-toggle').addEventListener('click', () => {
+        isSandbox = !isSandbox;
+        const modeText = document.getElementById('mode-text');
+        const taskCard = document.getElementById('task-card');
+        const sandboxCard = document.getElementById('sandbox-card');
+
+        if (isSandbox) {
+          modeText.textContent = 'Назад до завдань';
+          taskCard.classList.add('hidden');
+          sandboxCard.classList.remove('hidden');
+          document.getElementById('target-legend').classList.add('hidden');
+        } else {
+          modeText.textContent = 'Перейти в Пісочницю';
+          taskCard.classList.remove('hidden');
+          sandboxCard.classList.add('hidden');
+          document.getElementById('target-legend').classList.remove('hidden');
+          loadTask(currentTaskIdx);
+        }
+        render();
+      });
+
+      // Theory Modal
+      const modalTheory = document.getElementById('modal-theory');
+      const openTheory = () => {
+        modalTheory.classList.remove('opacity-0', 'pointer-events-none');
+      };
+      const closeTheory = () => {
+        modalTheory.classList.add('opacity-0', 'pointer-events-none');
+      };
+
+      document.getElementById('btn-theory').addEventListener('click', openTheory);
+      document.getElementById('btn-close-theory').addEventListener('click', closeTheory);
+      document.getElementById('btn-close-theory-footer').addEventListener('click', closeTheory);
+
+      // Load initial task
+      loadTask(0);
+    });
+  </script>
+</body>
+</html>
+
