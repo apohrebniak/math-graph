@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Математичний тренажер: Корінь n-го степеня</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+      min-height: 100vh;
+      color: #f8fafc;
+    }
+    
+    .glass-card {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .glass-input {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Animation for floating candies */
+    @keyframes candyPop {
+      0% { transform: translateY(0) scale(0.5) rotate(0deg); opacity: 0; }
+      50% { transform: translateY(-30px) scale(1.3) rotate(180deg); opacity: 1; }
+      100% { transform: translateY(-60px) scale(1) rotate(360deg); opacity: 0; }
+    }
+    .candy-fly {
+      animation: candyPop 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      position: absolute;
+      pointer-events: none;
+    }
+
+    /* Pulse animation for active task */
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); }
+      50% { box-shadow: 0 0 25px rgba(168, 85, 247, 0.8); }
+    }
+    .active-task-glow {
+      animation: pulseGlow 2s infinite;
+    }
+  </style>
+</head>
+<body class="p-3 md:p-6 text-slate-100 flex flex-col justify-between min-h-screen">
+
+  <div class="max-w-5xl mx-auto w-full flex-grow flex flex-col gap-6">
+    
+    <!-- Top Bar Navigation & Statistics -->
+    <header class="glass-card rounded-2xl p-4 md:p-6 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-2xl shadow-lg">
+          📐
+        </div>
+        <div>
+          <h1 class="text-xl md:text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-purple-300 via-pink-300 to-amber-200">
+            Корінь n-го степеня
+          </h1>
+          <p class="text-xs text-slate-400 font-medium">Інтерактивний тренажер для 10 класу • 24 завдання</p>
+        </div>
+      </div>
+
+      <!-- Score & Candy Counters -->
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-4 py-2 flex items-center gap-2">
+          <span class="text-xl">🏆</span>
+          <div>
+            <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Бали</div>
+            <div id="scoreDisplay" class="text-lg font-black text-amber-400">0 / 1200</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-4 py-2 flex items-center gap-2 relative" id="candyContainer">
+          <span class="text-xl">🍬</span>
+          <div>
+            <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Цукерки</div>
+            <div id="candyDisplay" class="text-lg font-black text-pink-400">0</div>
+          </div>
+        </div>
+
+        <button id="cheatsheetBtn" onclick="toggleCheatsheet()" class="bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 px-3 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-1.5">
+          💡 <span>Довідник</span>
+        </button>
+
+        <button onclick="resetTrainer()" class="bg-slate-700/40 hover:bg-slate-700/70 border border-slate-600/40 text-slate-300 p-2.5 rounded-xl text-sm transition" title="Скинути прогрес">
+          🔄
+        </button>
+      </div>
+    </header>
+
+    <!-- Overall Progress Bar -->
+    <div class="glass-card rounded-xl p-3 flex flex-col gap-1.5">
+      <div class="flex justify-between text-xs font-semibold text-slate-300">
+        <span>Прогрес проходження</span>
+        <span id="progressText">0 з 24 виправлено</span>
+      </div>
+      <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700">
+        <div id="progressBar" class="bg-gradient-to-r from-purple-500 via-pink-500 to-amber-400 h-full rounded-full transition-all duration-500 w-0"></div>
+      </div>
+    </div>
+
+    <!-- Main Workspace Grid (Question Box + Selector Map) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow">
+      
+      <!-- Left 2 Columns: Active Task Display -->
+      <div class="lg:col-span-2 glass-card rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden">
+        
+        <!-- Background decorative math symbol -->
+        <div class="absolute -right-8 -bottom-8 opacity-5 text-9xl font-black select-none pointer-events-none">
+          √
+        </div>
+
+        <div>
+          <!-- Level Badge & Task Counter -->
+          <div class="flex items-center justify-between mb-4">
+            <span id="levelBadge" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-purple-900/60 text-purple-300 border border-purple-500/30">
+              Рівень 1
+            </span>
+            <span id="taskCounter" class="text-sm font-semibold text-slate-400">
+              Завдання 1 з 24
+            </span>
+          </div>
+
+          <!-- Problem Display Container -->
+          <div class="my-6 text-center py-8 px-4 bg-slate-900/50 rounded-2xl border border-slate-800 shadow-inner min-h-[140px] flex items-center justify-center">
+            <div id="mathProblem" class="text-3xl md:text-5xl font-extrabold tracking-wide text-white select-none">
+              <!-- Rendered math here -->
+            </div>
+          </div>
+
+          <!-- Input and Controls -->
+          <form id="answerForm" onsubmit="handleAnswerSubmit(event)" class="flex flex-col gap-4 max-w-md mx-auto">
+            <div class="flex gap-2">
+              <input 
+                type="text" 
+                id="userAnswer" 
+                placeholder="Введіть відповідь..." 
+                autocomplete="off"
+                class="glass-input flex-grow px-4 py-3.5 rounded-xl text-lg font-bold text-center text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+              >
+              <button 
+                type="submit" 
+                id="submitBtn"
+                class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold px-6 py-3.5 rounded-xl shadow-lg transition active:scale-95 flex items-center gap-2"
+              >
+                <span>Перевірити</span> 🚀
+              </button>
+            </div>
+            
+            <div class="flex justify-between items-center px-1">
+              <span id="attemptBadge" class="text-xs font-medium text-slate-400">
+                Спроба: <span class="text-purple-300 font-bold">1</span> (Доступно: +50 балів)
+              </span>
+              <button 
+                type="button" 
+                onclick="toggleHint()" 
+                class="text-xs text-amber-300 hover:text-amber-200 underline font-medium transition flex items-center gap-1"
+              >
+                💡 <span id="hintToggleText">Показати підказку</span>
+              </button>
+            </div>
+          </form>
+
+          <!-- Hint Box -->
+          <div id="hintBox" class="hidden mt-4 p-4 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 text-sm animate-fadeIn">
+            <div class="font-bold mb-1 flex items-center gap-1">💡 Підказка від вчителя:</div>
+            <div id="hintText"></div>
+          </div>
+
+          <!-- Dynamic Feedback Message -->
+          <div id="feedbackBox" class="hidden mt-4 p-4 rounded-xl text-center font-bold text-sm md:text-base border transition-all duration-300">
+          </div>
+        </div>
+
+        <!-- Task Navigation Buttons -->
+        <div class="flex justify-between items-center mt-8 pt-4 border-t border-slate-700/50">
+          <button onclick="prevTask()" id="prevBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed">
+            ← Попереднє
+          </button>
+          <div id="statusIndicator" class="text-xs font-semibold text-slate-400">
+            <!-- Active Status -->
+          </div>
+          <button onclick="nextTask()" id="nextBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed">
+            Наступне →
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Right 1 Column: Interactive Task Map Grid -->
+      <div class="glass-card rounded-2xl p-5 flex flex-col justify-between">
+        <div>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
+            <span>Карта завдань</span>
+            <span class="text-xs font-normal text-slate-500">24 корені</span>
+          </h2>
+
+          <!-- Task Buttons Grid -->
+          <div id="taskGrid" class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-4 gap-2.5">
+            <!-- Generated dynamically via JavaScript -->
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="mt-6 pt-4 border-t border-slate-700/50 space-y-2 text-[11px] text-slate-400 font-medium">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+            <span>1 спроба: <b>+50 балів</b></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-pink-500 inline-block"></span>
+            <span>2 спроба (вірно): <b>Цукерка 🍬</b></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+            <span>2 спроби вичерпано: <b>Завершено (0 б)</b></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Formula Cheatsheet Modal -->
+  <div id="cheatsheetModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-card max-w-xl w-full rounded-2xl p-6 border border-purple-500/30 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <button onclick="toggleCheatsheet()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl font-bold p-1">
+        ✕
+      </button>
+
+      <h2 class="text-xl font-extrabold text-amber-300 mb-4 flex items-center gap-2">
+        📘 Довідник: Корінь n-го степеня
+      </h2>
+
+      <div class="space-y-4 text-sm text-slate-200">
+        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700">
+          <div class="font-bold text-purple-300 mb-1">Означення:</div>
+          <p class="text-slate-300">Коренем $n$-го степеня із числа $a$ називається таке число, $n$-ний степінь якого дорівнює $a$.</p>
+          <p class="mt-1 font-mono text-amber-200">√[n]{a} = b ⇔ bⁿ = a</p>
+        </div>
+
+        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700">
+          <div class="font-bold text-purple-300 mb-1">Основні властивості:</div>
+          <ul class="list-disc list-inside space-y-1.5 font-mono text-xs md:text-sm">
+            <li>Добуток: <span class="text-pink-300"><sup>n</sup>√(a · b) = <sup>n</sup>√a · <sup>n</sup>√b</span></li>
+            <li>Частка: <span class="text-pink-300"><sup>n</sup>√(a / b) = <sup>n</sup>√a / <sup>n</sup>√b</span></li>
+            <li>Степінь під коренем: <span class="text-pink-300"><sup>n</sup>√(a<sup>k</sup>) = (<sup>n</sup>√a)<sup>k</sup></span></li>
+            <li>Корінь з кореня: <span class="text-pink-300"><sup>k</sup>√(<sup>n</sup>√a) = <sup>k·n</sup>√a</span></li>
+            <li>Основна тотожність: <span class="text-pink-300">(<sup>n</sup>√a)<sup>n</sup> = a</span></li>
+            <li>Парний степінь: <span class="text-pink-300"><sup>2k</sup>√(a<sup>2k</sup>) = |a|</span></li>
+            <li>Непарний степінь: <span class="text-pink-300"><sup>2k+1</sup>√(a<sup>2k+1</sup>) = a</span></li>
+          </ul>
+        </div>
+
+        <div class="bg-purple-950/40 p-3 rounded-xl border border-purple-500/30 text-xs text-purple-200">
+          💡 <b>Порада вчителя:</b> Завжди перевіряй знак підкореневого виразу, особливо для непарних степенів (від'ємні числа дозволені) та парних степенів (результат завжди невід'ємний)!
+        </div>
+      </div>
+
+      <div class="mt-6 text-center">
+        <button onclick="toggleCheatsheet()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-2.5 rounded-xl transition">
+          Зрозуміло, до роботи! 🚀
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Final Results Summary Modal -->
+  <div id="resultsModal" class="fixed inset-0 bg-black/85 backdrop-blur-lg hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-card max-w-lg w-full rounded-3xl p-6 md:p-8 border border-amber-500/40 shadow-2xl text-center relative overflow-hidden animate-fadeIn">
+      
+      <div class="text-6xl mb-3">🎓</div>
+      
+      <h2 class="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-pink-300 to-purple-300 mb-2">
+        Урок завершено!
+      </h2>
+      <p class="text-xs md:text-sm text-slate-300 mb-6">Тема: «Обчислення коренів n-го степеня»</p>
+
+      <!-- Final Stats Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+        <div class="bg-slate-900/70 border border-slate-700/80 p-3 rounded-2xl">
+          <div class="text-xs text-slate-400 uppercase font-bold">Набрано балів</div>
+          <div id="finalScore" class="text-2xl md:text-3xl font-black text-amber-400 mt-1">0</div>
+          <div id="finalPercent" class="text-[10px] text-slate-400 font-semibold">0% від максимуму</div>
+        </div>
+        <div class="bg-slate-900/70 border border-slate-700/80 p-3 rounded-2xl">
+          <div class="text-xs text-slate-400 uppercase font-bold">Зібрано цукерок</div>
+          <div id="finalCandies" class="text-2xl md:text-3xl font-black text-pink-400 mt-1">0 🍬</div>
+          <div class="text-[10px] text-slate-400 font-semibold">за 2-гі спроби</div>
+        </div>
+        <div class="col-span-2 md:col-span-1 bg-slate-900/70 border border-slate-700/80 p-3 rounded-2xl flex flex-col justify-center">
+          <div class="text-xs text-slate-400 uppercase font-bold">З 1-ї спроби</div>
+          <div id="firstTryCount" class="text-2xl md:text-3xl font-black text-emerald-400 mt-1">0 / 24</div>
+          <div id="firstTryPercentSub" class="text-[10px] text-slate-400 font-semibold">0% точності</div>
+        </div>
+      </div>
+
+      <!-- Detailed Breakdown Table/Grid -->
+      <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 mb-6 text-left space-y-2 text-xs">
+        <div class="font-bold text-slate-300 border-b border-slate-700/70 pb-2 flex justify-between">
+          <span>Підсумок та деталізація спроб:</span>
+          <span>Бали</span>
+        </div>
+        <div class="flex justify-between items-center text-emerald-300">
+          <span class="flex items-center gap-1.5">🌟 З 1-ї спроби (<span id="statTry1Count">0</span> завд. × 50 б.):</span>
+          <span id="statTry1Pts" class="font-bold">+0 б.</span>
+        </div>
+        <div class="flex justify-between items-center text-pink-300">
+          <span class="flex items-center gap-1.5">🍬 З 2-ї спроби (<span id="statTry2Count">0</span> завд.):</span>
+          <span class="font-bold">0 б. (+<span id="statTry2Candies">0</span> 🍬)</span>
+        </div>
+        <div class="flex justify-between items-center text-slate-400">
+          <span class="flex items-center gap-1.5">❌ Не розв'язано за 2 спроби (<span id="statFailedCount">0</span> завд.):</span>
+          <span class="font-bold">0 б.</span>
+        </div>
+      </div>
+
+      <!-- Grade Display Box -->
+      <div class="bg-gradient-to-r from-purple-900/50 to-pink-900/50 border border-purple-500/40 rounded-2xl p-4 mb-6">
+        <div class="text-xs uppercase font-bold tracking-widest text-purple-300">Оцінка за урок (12-бальна шкала)</div>
+        <div id="finalGrade" class="text-4xl font-black text-white my-1">12 балів</div>
+        <div id="teacherComment" class="text-xs text-amber-200 italic font-medium"></div>
+      </div>
+
+      <div class="flex gap-3 justify-center">
+        <button onclick="resetTrainer()" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg transition">
+          Пройти знову 🔄
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // 24 Tasks specially tailored for 10th Grade Math Curriculum ( Корінь n-го степеня )
+    const tasks = [
+      // Level 1: Basic Roots
+      { id: 1, level: "Рівень 1: Базовий", expHtml: `<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">64</span>`, answer: 4, hint: "Знайди число, куб якого дорівнює 64. Оскільки 4³ = 64, то відповідь 4." },
+      { id: 2, level: "Рівень 1: Базовий", expHtml: `<sup>4</sup>√<span class="border-t-2 border-current pt-0.5 px-1">81</span>`, answer: 3, hint: "Яке число в 4-му степені дає 81? 3⁴ = 81." },
+      { id: 3, level: "Рівень 1: Базовий", expHtml: `<sup>5</sup>√<span class="border-t-2 border-current pt-0.5 px-1">32</span>`, answer: 2, hint: "Обчисли 5-й корінь із 32. Оскільки 2⁵ = 32, відповідь 2." },
+      { id: 4, level: "Рівень 1: Базовий", expHtml: `<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">-125</span>`, answer: -5, hint: "Корінь непарного степеня з від'ємного числа є від'ємним числом: (-5)³ = -125." },
+      { id: 5, level: "Рівень 1: Базовий", expHtml: `<sup>7</sup>√<span class="border-t-2 border-current pt-0.5 px-1">-1</span>`, answer: -1, hint: "Для будь-якого непарного $n$: ⁿ√(-1) = -1." },
+      
+      // Level 2: Sums & Differences of Roots
+      { id: 6, level: "Рівень 2: Сума та різниця", expHtml: `<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">27</span> + <sup>4</sup>√<span class="border-t-2 border-current pt-0.5 px-1">16</span>`, answer: 5, hint: "Обчисли кожен корінь окремо: <sup>3</sup>√27 = 3, а <sup>4</sup>√16 = 2. Потім додай: 3 + 2 = 5." },
+      { id: 7, level: "Рівень 2: Сума та різниця", expHtml: `<sup>5</sup>√<span class="border-t-2 border-current pt-0.5 px-1">243</span> - <sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">8</span>`, answer: 1, hint: "Обчисли: <sup>5</sup>√243 = 3 та <sup>3</sup>√8 = 2. Знайди різницю: 3 - 2 = 1." },
+      
+      // Level 3: Product Property
+      { id: 8, level: "Рівень 3: Добуток під коренем", expHtml: `<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">2 · 4</span>`, answer: 2, hint: "Спочатку перемнож числа під коренем: 2 · 4 = 8. Тоді <sup>3</sup>√8 = 2." },
+      { id: 9, level: "Рівень 3: Добуток під коренем", expHtml: `<sup>4</sup>√<span class="border-t-2 border-current pt-0.5 px-1">3 · 27</span>`, answer: 3, hint: "Виконай множення: 3 · 27 = 81. Потім обчисли <sup>4</sup>√81 = 3." },
+      { id: 10, level: "Рівень 3: Добуток під коренем", expHtml: `<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">-4 · 16</span>`, answer: -4, hint: "Підкореневий вираз: -4 · 16 = -64. Оскільки (-4)³ = -64, відповідь -4." },
+      
+      // Level 4: Quotient Property
+      { id: 11, level: "Рівень 4: Частка під коренем", expHtml: `<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1"><span class="inline-flex flex-col text-center align-middle mx-1"><span class="border-b border-current px-1">250</span><span>2</span></span></span>`, answer: 5, hint: "Поділи 250 на 2, це 125. Тоді <sup>3</sup>√125 = 5." },
+      { id: 12, level: "Рівень 4: Частка під коренем", expHtml: `<sup>4</sup>√<span class="border-t-2 border-current pt-0.5 px-1"><span class="inline-flex flex-col text-center align-middle mx-1"><span class="border-b border-current px-1">162</span><span>2</span></span></span>`, answer: 3, hint: "Поділи 162 на 2 = 81. <sup>4</sup>√81 = 3." },
+      { id: 13, level: "Рівень 4: Частка під коренем", expHtml: `<sup>5</sup>√<span class="border-t-2 border-current pt-0.5 px-1"><span class="inline-flex flex-col text-center align-middle mx-1"><span class="border-b border-current px-1">-64</span><span>2</span></span></span>`, answer: -2, hint: "Обчисли -64 / 2 = -32. Тоді <sup>5</sup>√(-32) = -2." },
+      
+      // Level 5: Powers & Identity Properties
+      { id: 14, level: "Рівень 5: Степені під коренем", expHtml: `<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">2<sup>6</sup></span>`, answer: 4, hint: "Поділи показник степеня на показник кореня: 6 / 3 = 2. Отримуємо 2² = 4." },
+      { id: 15, level: "Рівень 5: Степені під коренем", expHtml: `<sup>4</sup>√<span class="border-t-2 border-current pt-0.5 px-1">3<sup>8</sup></span>`, answer: 9, hint: "Поділи показник степеня 8 на 4: 3<sup>8/4</sup> = 3² = 9." },
+      { id: 16, level: "Рівень 5: Степені під коренем", expHtml: `(<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">7</span>)<sup>3</sup>`, answer: 7, hint: "За тотожністю (ⁿ√a)ⁿ = a, отже відповідь 7." },
+      { id: 17, level: "Рівень 5: Степені під коренем", expHtml: `<sup>4</sup>√<span class="border-t-2 border-current pt-0.5 px-1">5<sup>4</sup></span>`, answer: 5, hint: "Для будь-якого a ≥ 0 маємо <sup>n</sup>√(a<sup>n</sup>) = a. Отже, <sup>4</sup>√(5⁴) = 5." },
+      { id: 18, level: "Рівень 5: Степені під коренем", expHtml: `<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">(-6)<sup>3</sup></span>`, answer: -6, hint: "Для непарного степеня <sup>2k+1</sup>√(a<sup>2k+1</sup>) = a. Відповідь -6." },
+      
+      // Level 6: Nested Roots & Advanced Properties
+      { id: 19, level: "Рівень 6: Подвійні корені", expHtml: `√<span class="border-t-2 border-current pt-0.5 px-1"><sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">64</span></span>`, answer: 2, hint: "Спочатку <sup>3</sup>√64 = 4. Далі обчисли √4 = 2. (Або скористайся властивістю <sup>2·3</sup>√64 = <sup>6</sup>√64 = 2)." },
+      { id: 20, level: "Рівень 6: Подвійні корені", expHtml: `<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">√<span class="border-t-2 border-current pt-0.5 px-1">729</span></span>`, answer: 3, hint: "Спочатку √729 = 27. Потім <sup>3</sup>√27 = 3." },
+      { id: 21, level: "Рівень 6: Подвійні корені", expHtml: `<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">8 · 27</span>`, answer: 6, hint: "Скористайся властивістю добутку коренів: <sup>3</sup>√8 · <sup>3</sup>√27 = 2 · 3 = 6." },
+      { id: 22, level: "Рівень 6: Подвійні корені", expHtml: `<sup>4</sup>√<span class="border-t-2 border-current pt-0.5 px-1">16 · 81</span>`, answer: 6, hint: "Застосуй властивість: <sup>4</sup>√16 · <sup>4</sup>√81 = 2 · 3 = 6." },
+      { id: 23, level: "Рівень 6: Майстер коренів", expHtml: `<sup>3</sup>√<span class="border-t-2 border-current pt-0.5 px-1">5<sup>3</sup> · 2<sup>3</sup></span>`, answer: 10, hint: "Винеси корені: (5<sup>3</sup> · 2<sup>3</sup>) = (5 · 2)³ = 10³. Кубічний корінь з 10³ дорівнює 10." },
+      { id: 24, level: "Рівень 6: Майстер коренів", expHtml: `<sup>5</sup>√<span class="border-t-2 border-current pt-0.5 px-1">4<sup>5</sup> · 3<sup>5</sup></span>`, answer: 12, hint: "Спрости: <sup>5</sup>√(4⁵) · <sup>5</sup>√(3⁵) = 4 · 3 = 12." }
+    ];
+
+    // State Management
+    let currentTaskIndex = 0;
+    let score = 0;
+    let candies = 0;
+    let autoAdvanceTimer = null;
+    
+    // Track attempts and status for each task
+    // Statuses: 'unanswered', 'try1_correct', 'try2_correct', 'try2_failed'
+    const taskStates = tasks.map(() => ({
+      attempts: 0,
+      status: 'unanswered'
+    }));
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function playSound(type) {
+      try {
+        if (!audioCtx) audioCtx = new AudioContext();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'success1') {
+          // Double tone chime for +50 pts
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now); // C5
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } else if (type === 'candy') {
+          // Bouncy sound for candy
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        } else if (type === 'error') {
+          // Soft error tone
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.linearRampToValueAtTime(110, now + 0.2);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        }
+      } catch (e) {
+        // Audio fallback silence
+      }
+    }
+
+    function init() {
+      renderTaskGrid();
+      loadTask(0);
+    }
+
+    function renderTaskGrid() {
+      const gridContainer = document.getElementById('taskGrid');
+      gridContainer.innerHTML = '';
+
+      tasks.forEach((task, index) => {
+        const btn = document.createElement('button');
+        btn.onclick = () => jumpToTask(index);
+        
+        let stateClass = "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700";
+        let badge = `${task.id}`;
+
+        const state = taskStates[index].status;
+        if (state === 'try1_correct') {
+          stateClass = "bg-emerald-950 border-emerald-500/60 text-emerald-300 font-bold";
+          badge = `${task.id} ⭐`;
+        } else if (state === 'try2_correct') {
+          stateClass = "bg-pink-950 border-pink-500/60 text-pink-300 font-bold";
+          badge = `${task.id} 🍬`;
+        } else if (state === 'try2_failed') {
+          stateClass = "bg-rose-950/60 border-rose-500/50 text-rose-300 font-bold";
+          badge = `${task.id} ❌`;
+        }
+
+        if (index === currentTaskIndex) {
+          stateClass += " ring-2 ring-purple-400 active-task-glow scale-105 z-10";
+        }
+
+        btn.className = `p-2.5 rounded-xl border text-xs flex items-center justify-center transition-all ${stateClass}`;
+        btn.innerHTML = badge;
+        gridContainer.appendChild(btn);
+      });
+    }
+
+    function loadTask(index) {
+      if (autoAdvanceTimer) {
+        clearTimeout(autoAdvanceTimer);
+        autoAdvanceTimer = null;
+      }
+
+      currentTaskIndex = index;
+      const task = tasks[index];
+      const state = taskStates[index];
+
+      // Update Top Badge & Headers
+      document.getElementById('levelBadge').innerText = task.level;
+      document.getElementById('taskCounter').innerText = `Завдання ${task.id} з 24`;
+      document.getElementById('mathProblem').innerHTML = `${task.expHtml} = ?`;
+
+      // Clear & focus input
+      const input = document.getElementById('userAnswer');
+      input.value = '';
+      input.disabled = state.status !== 'unanswered';
+      document.getElementById('submitBtn').disabled = state.status !== 'unanswered';
+
+      // Hide Hint Box & Reset Hint Toggle Text
+      document.getElementById('hintBox').classList.add('hidden');
+      document.getElementById('hintText').innerText = task.hint;
+      document.getElementById('hintToggleText').innerText = "Показати підказку";
+
+      // Attempt Tracker Text
+      updateAttemptTracker();
+
+      // Navigation Buttons Enable/Disable
+      document.getElementById('prevBtn').disabled = index === 0;
+      document.getElementById('nextBtn').disabled = index === tasks.length - 1;
+
+      // Render Feedback State if already completed
+      const feedback = document.getElementById('feedbackBox');
+      if (state.status === 'try1_correct') {
+        showFeedback("Завдання складено з 1-ї спроби! (+50 балів) 🌟", "emerald");
+      } else if (state.status === 'try2_correct') {
+        showFeedback("Завдання складено з 2-ї спроби! Отримано цукерку! 🍬", "pink");
+      } else if (state.status === 'try2_failed') {
+        showFeedback(`Спроби вичерпано! Правильна відповідь: ${task.answer}`, "amber");
+      } else {
+        feedback.classList.add('hidden');
+      }
+
+      renderTaskGrid();
+      if (state.status === 'unanswered') {
+        setTimeout(() => input.focus(), 100);
+      }
+    }
+
+    function updateAttemptTracker() {
+      const state = taskStates[currentTaskIndex];
+      const task = tasks[currentTaskIndex];
+      const badge = document.getElementById('attemptBadge');
+      
+      if (state.status !== 'unanswered') {
+        if (state.status === 'try1_correct') {
+          badge.innerHTML = `<span class="text-emerald-400 font-bold">✓ Зараховано з 1-ї спроби (+50 б.)</span>`;
+        } else if (state.status === 'try2_correct') {
+          badge.innerHTML = `<span class="text-pink-400 font-bold">✓ Зараховано з 2-ї спроби (🍬)</span>`;
+        } else {
+          badge.innerHTML = `<span class="text-rose-400 font-bold">❌ 2 спроби вичерпано (Відповідь: ${task.answer})</span>`;
+        }
+        return;
+      }
+
+      const attemptNum = state.attempts + 1;
+      let rewardText = "";
+      if (attemptNum === 1) rewardText = "(Доступно: +50 балів)";
+      else rewardText = "(Остання спроба: Цукерка 🍬)";
+
+      badge.innerHTML = `Спроба: <span class="text-purple-300 font-bold">${attemptNum} з 2</span> ${rewardText}`;
+    }
+
+    function scheduleAutoNext() {
+      if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+
+      autoAdvanceTimer = setTimeout(() => {
+        const allDone = taskStates.every(s => s.status !== 'unanswered');
+        if (allDone) {
+          showFinalResults();
+        } else {
+          // Find next logical task (prefer immediate next if unanswered, or first unanswered)
+          let nextIdx = currentTaskIndex + 1;
+          if (nextIdx < tasks.length && taskStates[nextIdx].status === 'unanswered') {
+            loadTask(nextIdx);
+          } else {
+            const firstUnanswered = taskStates.findIndex(s => s.status === 'unanswered');
+            if (firstUnanswered !== -1) {
+              loadTask(firstUnanswered);
+            } else if (currentTaskIndex < tasks.length - 1) {
+              loadTask(currentTaskIndex + 1);
+            }
+          }
+        }
+      }, 1800);
+    }
+
+    function handleAnswerSubmit(e) {
+      e.preventDefault();
+      const task = tasks[currentTaskIndex];
+      const state = taskStates[currentTaskIndex];
+
+      if (state.status !== 'unanswered') return;
+
+      const inputVal = document.getElementById('userAnswer').value.trim();
+      const parsedAns = parseFloat(inputVal.replace(',', '.'));
+
+      if (isNaN(parsedAns)) {
+        showFeedback("Будь ласка, введи числову відповідь!", "amber");
+        playSound('error');
+        return;
+      }
+
+      state.attempts++;
+
+      if (parsedAns === task.answer) {
+        // CORRECT ANSWER LOGIC
+        if (state.attempts === 1) {
+          state.status = 'try1_correct';
+          score += 50;
+          playSound('success1');
+          showFeedback("Вірно з першої спроби! Чудова робота! +50 балів 🌟 (Перехід далі...)", "emerald");
+        } else {
+          state.status = 'try2_correct';
+          candies++;
+          playSound('candy');
+          triggerCandyAnimation();
+          showFeedback("Вірно з другої спроби! Отримуєш цукерку! 🍬 (Перехід далі...)", "pink");
+        }
+
+        updateHeaderStats();
+        renderTaskGrid();
+        document.getElementById('userAnswer').disabled = true;
+        document.getElementById('submitBtn').disabled = true;
+        updateAttemptTracker();
+
+        scheduleAutoNext();
+
+      } else {
+        // INCORRECT ANSWER LOGIC
+        playSound('error');
+        if (state.attempts === 1) {
+          showFeedback("Не зовсім так! У тебе залишилась 2-га (остання) спроба вибити цукерку! 🍬 Спробуй ще раз!", "amber");
+          updateAttemptTracker();
+        } else {
+          // 2nd attempt failed -> Mark task as completed (failed) & Auto Advance
+          state.status = 'try2_failed';
+          showFeedback(`2 спроби вичерпано. Правильна відповідь: ${task.answer}. (Перехід далі...)`, "amber");
+          
+          updateHeaderStats();
+          renderTaskGrid();
+          document.getElementById('userAnswer').disabled = true;
+          document.getElementById('submitBtn').disabled = true;
+          updateAttemptTracker();
+
+          scheduleAutoNext();
+        }
+      }
+    }
+
+    function showFeedback(msg, color) {
+      const fb = document.getElementById('feedbackBox');
+      fb.classList.remove('hidden', 'bg-emerald-950/70', 'border-emerald-500/50', 'text-emerald-200',
+                          'bg-pink-950/70', 'border-pink-500/50', 'text-pink-200',
+                          'bg-purple-950/70', 'border-purple-500/50', 'text-purple-200',
+                          'bg-amber-950/70', 'border-amber-500/50', 'text-amber-200');
+      
+      if (color === 'emerald') {
+        fb.classList.add('bg-emerald-950/70', 'border-emerald-500/50', 'text-emerald-200');
+      } else if (color === 'pink') {
+        fb.classList.add('bg-pink-950/70', 'border-pink-500/50', 'text-pink-200');
+      } else if (color === 'purple') {
+        fb.classList.add('bg-purple-950/70', 'border-purple-500/50', 'text-purple-200');
+      } else {
+        fb.classList.add('bg-amber-950/70', 'border-amber-500/50', 'text-amber-200');
+      }
+
+      fb.innerText = msg;
+    }
+
+    function updateHeaderStats() {
+      document.getElementById('scoreDisplay').innerText = `${score} / 1200`;
+      document.getElementById('candyDisplay').innerText = `${candies}`;
+
+      // Update progress bar
+      const completedCount = taskStates.filter(s => s.status !== 'unanswered').length;
+      const pct = (completedCount / tasks.length) * 100;
+      document.getElementById('progressBar').style.width = `${pct}%`;
+      document.getElementById('progressText').innerText = `${completedCount} з 24 виконано`;
+    }
+
+    function triggerCandyAnimation() {
+      const container = document.getElementById('candyContainer');
+      const candyFly = document.createElement('div');
+      candyFly.className = 'candy-fly';
+      candyFly.innerText = '🍬';
+      candyFly.style.left = '50%';
+      candyFly.style.top = '0px';
+      container.appendChild(candyFly);
+
+      setTimeout(() => {
+        candyFly.remove();
+      }, 1000);
+    }
+
+    function toggleHint() {
+      const hintBox = document.getElementById('hintBox');
+      const hintTextBtn = document.getElementById('hintToggleText');
+      
+      if (hintBox.classList.contains('hidden')) {
+        hintBox.classList.remove('hidden');
+        hintTextBtn.innerText = "Сховати підказку";
+      } else {
+        hintBox.classList.add('hidden');
+        hintTextBtn.innerText = "Показати підказку";
+      }
+    }
+
+    function toggleCheatsheet() {
+      const modal = document.getElementById('cheatsheetModal');
+      modal.classList.toggle('hidden');
+    }
+
+    function prevTask() {
+      if (currentTaskIndex > 0) {
+        loadTask(currentTaskIndex - 1);
+      }
+    }
+
+    function nextTask() {
+      if (currentTaskIndex < tasks.length - 1) {
+        loadTask(currentTaskIndex + 1);
+      }
+    }
+
+    function jumpToTask(index) {
+      loadTask(index);
+    }
+
+    function checkTrainerCompletion() {
+      const allDone = taskStates.every(s => s.status !== 'unanswered');
+      if (allDone) {
+        setTimeout(showFinalResults, 1000);
+      }
+    }
+
+    function showFinalResults() {
+      const try1Count = taskStates.filter(s => s.status === 'try1_correct').length;
+      const try2Count = taskStates.filter(s => s.status === 'try2_correct').length;
+      const failedCount = taskStates.filter(s => s.status === 'try2_failed').length;
+
+      const totalPossible = tasks.length * 50; // 1200
+      const percent = Math.round((score / totalPossible) * 100);
+      const try1Pct = (try1Count / tasks.length) * 100;
+
+      document.getElementById('finalScore').innerText = `${score} / ${totalPossible}`;
+      document.getElementById('finalPercent').innerText = `${percent}% від максимуму`;
+      document.getElementById('finalCandies').innerText = `${candies} 🍬`;
+      document.getElementById('firstTryCount').innerText = `${try1Count} / 24`;
+      document.getElementById('firstTryPercentSub').innerText = `${Math.round(try1Pct)}% точності (1-ша спроба)`;
+
+      // Stats breakdown details
+      document.getElementById('statTry1Count').innerText = try1Count;
+      document.getElementById('statTry1Pts').innerText = `+${try1Count * 50} б.`;
+      document.getElementById('statTry2Count').innerText = try2Count;
+      document.getElementById('statTry2Candies').innerText = candies;
+      document.getElementById('statFailedCount').innerText = failedCount;
+
+      // Grade Calculation based strictly on 1st attempt percentage:
+      // 99%+ -> 12, 95%+ -> 11, 85%+ -> 10
+      let grade = 1;
+      let comment = "";
+
+      if (try1Pct >= 99) {
+        grade = 12;
+        comment = "Грандіозно! 99%+ відповідей з 1-ї спроби — ідеальний результат! 👑";
+      } else if (try1Pct >= 95) {
+        grade = 11;
+        comment = "Блискуче! Понад 95% завдань розв'язано бездоганно з 1-ї спроби! 🌟";
+      } else if (try1Pct >= 85) {
+        grade = 10;
+        comment = "Чудово! Понад 85% точних відповідей з першого разу! 👏";
+      } else if (try1Pct >= 75) {
+        grade = 9;
+        comment = "Дуже добре! Гарна точність з першої спроби. 👍";
+      } else if (try1Pct >= 65) {
+        grade = 8;
+        comment = "Добре! Більшість завдань складено з 1-ї спроби, а цукерки допомогли! 🍬";
+      } else if (try1Pct >= 50) {
+        grade = 7;
+        comment = "Задовільно. Повтори властивості коренів для кращої точності з 1-ї спроби. 📘";
+      } else if (try1Pct >= 35) {
+        grade = 6;
+        comment = "Середній рівень. Багато завдань вимагали другої спроби. 💪";
+      } else {
+        grade = 4;
+        comment = "Повтори довідник та спробуй пройти тренажер ще раз! 🔄";
+      }
+
+      document.getElementById('finalGrade').innerText = `${grade} балів`;
+      document.getElementById('teacherComment').innerText = comment;
+
+      document.getElementById('resultsModal').classList.remove('hidden');
+    }
+
+    function resetTrainer() {
+      score = 0;
+      candies = 0;
+      taskStates.forEach(s => {
+        s.attempts = 0;
+        s.status = 'unanswered';
+      });
+      document.getElementById('resultsModal').classList.add('hidden');
+      updateHeaderStats();
+      loadTask(0);
+    }
+
+    // Initialize application on load
+    window.onload = function() {
+      init();
+    };
+  </script>
+</body>
+</html>
